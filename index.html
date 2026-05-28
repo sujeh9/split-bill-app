@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Split Bill Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    input, select, button { font-family: inherit; }
+    .checkbox-paid { accent-color: #0284c7; }
+  </style>
+</head>
+<body class="bg-sky-100 text-black min-h-screen py-8 px-4">
+
+<div class="max-w-5xl mx-auto">
+  <header class="mb-8">
+    <h1 class="text-2xl font-bold flex items-center gap-2 text-black">
+      <span>💰</span> Split Bill Calculator
+    </h1>
+    <p class="text-sm mt-1 text-black">
+      Akumulasi hutang bulan
+      <span id="month-label" class="font-semibold text-black"></span>
+    </p>
+  </header>
+
+  <div class="grid lg:grid-cols-2 gap-6">
+    <!-- LEFT COLUMN -->
+    <div class="space-y-6">
+
+      <!-- People Section -->
+      <section class="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 text-black">
+        <h2 class="text-lg font-semibold mb-4 text-black">Anggota</h2>
+        <form id="add-person-form" class="flex flex-col gap-2 mb-4">
+          <input
+            type="text" id="person-name" placeholder="Nama" required
+            class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <input
+            type="email" id="person-email" placeholder="Email" required
+            class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <button
+            type="submit"
+            class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-600 text-white px-4 py-2 text-sm font-medium hover:bg-sky-700"
+          >
+            + Tambah
+          </button>
+        </form>
+        <div id="person-error" class="hidden mb-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2"></div>
+        <ul id="people-list" class="divide-y divide-zinc-100"></ul>
+      </section>
+
+      <!-- New Bill Section -->
+      <section class="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 text-black">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-black">
+          <span>🧾</span> Bill Baru
+        </h2>
+        <div id="bill-empty" class="text-sm text-black">
+          Tambah minimal 2 anggota dulu untuk bikin bill.
+        </div>
+        <form id="add-bill-form" class="hidden space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-black mb-1 block">Judul bill</label>
+            <input
+              type="text" id="bill-title" placeholder="Contoh: Nasi Padang Sabtu"
+              class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-black mb-1 block">Yang bayar</label>
+            <select
+              id="bill-payer"
+              class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="">-- pilih --</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-semibold text-black">
+                Yang ikutan & jumlah masing-masing
+              </label>
+              <button type="button" id="split-evenly-btn" class="text-xs font-semibold text-sky-700 hover:underline">
+                Bagi rata
+              </button>
+            </div>
+            <div id="shares-container" class="space-y-2"></div>
+            <button type="button" id="add-share-btn" class="mt-2 text-sm font-semibold text-sky-700 hover:underline inline-flex items-center gap-1">
+              + Tambah anggota
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-zinc-200">
+            <span class="text-sm font-semibold text-black">Total:</span>
+            <span id="bill-total" class="text-lg font-bold text-black">Rp 0</span>
+          </div>
+
+          <div id="bill-error" class="hidden rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2"></div>
+
+          <button
+            type="submit"
+            class="w-full rounded-lg bg-sky-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-sky-700"
+          >
+            Simpan Bill
+          </button>
+        </form>
+      </section>
+
+      <!-- Reminder Section -->
+      <section class="bg-white rounded-xl shadow-sm border border-sky-300 p-6 text-black">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2 text-black">
+          <span>📧</span> Reminder Email
+        </h2>
+        <p class="text-sm text-black mb-4">
+          Buka email client kamu dengan isi rincian hutang udah ke-isi otomatis (tinggal klik Send).
+        </p>
+        <button
+          id="open-reminder-btn"
+          class="inline-flex items-center gap-2 rounded-lg bg-sky-600 text-white px-4 py-2 text-sm font-medium hover:bg-sky-700"
+        >
+          📨 Buka List Reminder
+        </button>
+        <div id="reminder-result" class="hidden mt-3"></div>
+      </section>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="space-y-6">
+
+      <!-- Summary Section -->
+      <section class="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 text-black">
+        <h2 class="text-lg font-semibold mb-1 text-black">Akumulasi Hutang & Piutang</h2>
+        <p class="text-xs text-black mb-4">Hanya transaksi yang belum dibayar yang dihitung.</p>
+        <div id="summary-content"></div>
+      </section>
+
+      <!-- Bills List Section -->
+      <section class="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 text-black">
+        <h2 id="bills-header" class="text-lg font-semibold mb-4 text-black">Bills Bulan Ini</h2>
+        <div id="bills-content"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <footer class="mt-8 text-center text-xs text-black opacity-70">
+    Data tersimpen di browser kamu (localStorage). Bersihkan dengan klik tombol Reset di bawah.
+    <br/>
+    <button id="reset-btn" class="mt-2 text-xs text-red-700 hover:underline">Reset semua data</button>
+  </footer>
+</div>
+
+<script>
+  // =========================================================
+  // STATE & STORAGE
+  // =========================================================
+  const STORAGE_KEY = "splitbill_data_v1";
+
+  let state = {
+    people: [],
+    bills: [],
+  };
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = JSON.parse(raw);
+    } catch (e) {
+      console.error("Failed to load state", e);
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // =========================================================
+  // FORMAT HELPERS
+  // =========================================================
+  function formatIDR(n) {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(n);
+  }
+
+  function currentMonthLabel() {
+    return new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  }
+
+  function currentMonthKey() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+
+  function billMonthKey(bill) {
+    const d = new Date(bill.createdAt);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  // =========================================================
+  // PEOPLE LOGIC
+  // =========================================================
+  function addPerson(email, name) {
+    email = email.trim().toLowerCase();
+    name = name.trim();
+    if (!email || !name) throw new Error("Email dan nama wajib diisi");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Format email tidak valid");
+    if (state.people.some((p) => p.email === email)) throw new Error("Email sudah terdaftar");
+    state.people.push({
+      id: generateId(),
+      email, name,
+      createdAt: new Date().toISOString(),
+    });
+    saveState();
+  }
+
+  function deletePerson(id) {
+    const inBills = state.bills.some(
+      (b) => b.payerId === id || b.shares.some((s) => s.personId === id)
+    );
+    if (inBills) {
+      alert("Tidak bisa hapus: orang ini ada di bill yang udah dibuat.");
+      return;
+    }
+    state.people = state.people.filter((p) => p.id !== id);
+    saveState();
+  }
+
+  // =========================================================
+  // BILLS LOGIC
+  // =========================================================
+  function addBill(title, payerId, shares) {
+    title = title.trim();
+    if (!title) throw new Error("Judul bill wajib diisi");
+    if (!payerId) throw new Error("Pilih yang bayar");
+    const validShares = shares.filter((s) => s.personId && Number(s.amount) > 0);
+    if (validShares.length === 0) throw new Error("Minimal 1 orang dengan jumlah > 0");
+
+    const totalAmount = validShares.reduce((sum, s) => sum + Number(s.amount), 0);
+    const bill = {
+      id: generateId(),
+      title, payerId, totalAmount,
+      createdAt: new Date().toISOString(),
+      shares: validShares.map((s) => ({
+        id: generateId(),
+        personId: s.personId,
+        amount: Number(s.amount),
+        isPaid: s.personId === payerId,
+        paidAt: s.personId === payerId ? new Date().toISOString() : null,
+      })),
+    };
+    state.bills.push(bill);
+    saveState();
+  }
+
+  function deleteBill(id) {
+    state.bills = state.bills.filter((b) => b.id !== id);
+    saveState();
+  }
+
+  function toggleShare(billId, shareId) {
+    const bill = state.bills.find((b) => b.id === billId);
+    if (!bill) return;
+    const share = bill.shares.find((s) => s.id === shareId);
+    if (!share) return;
+    if (share.personId === bill.payerId) return; // payer can't be toggled
+    share.isPaid = !share.isPaid;
+    share.paidAt = share.isPaid ? new Date().toISOString() : null;
+    saveState();
+  }
+
+  // =========================================================
+  // SUMMARY COMPUTATION
+  // =========================================================
+  function computeSummary() {
+    const monthKey = currentMonthKey();
+    const monthBills = state.bills.filter((b) => billMonthKey(b) === monthKey);
+
+    const summary = {};
+    state.people.forEach((p) => {
+      summary[p.id] = {
+        id: p.id, name: p.name, email: p.email,
+        totalOwed: 0, owesTo: {},
+        totalToReceive: 0, owedBy: {},
+      };
+    });
+
+    monthBills.forEach((bill) => {
+      bill.shares.forEach((share) => {
+        if (share.isPaid) return;
+        if (share.personId === bill.payerId) return;
+
+        // debtor owes payer
+        const debtor = summary[share.personId];
+        const payer = summary[bill.payerId];
+        if (!debtor || !payer) return;
+
+        debtor.owesTo[bill.payerId] =
+          (debtor.owesTo[bill.payerId] || 0) + share.amount;
+        debtor.totalOwed += share.amount;
+
+        payer.owedBy[share.personId] =
+          (payer.owedBy[share.personId] || 0) + share.amount;
+        payer.totalToReceive += share.amount;
+      });
+    });
+
+    const peopleById = {};
+    state.people.forEach((p) => (peopleById[p.id] = p));
+
+    return Object.values(summary).map((s) => ({
+      ...s,
+      owesTo: Object.entries(s.owesTo).map(([payerId, amount]) => ({
+        payerId,
+        payerName: peopleById[payerId]?.name || "?",
+        payerEmail: peopleById[payerId]?.email || "",
+        amount,
+      })),
+      owedBy: Object.entries(s.owedBy).map(([debtorId, amount]) => ({
+        debtorId,
+        debtorName: peopleById[debtorId]?.name || "?",
+        debtorEmail: peopleById[debtorId]?.email || "",
+        amount,
+      })),
+    }));
+  }
+
+  // =========================================================
+  // RENDERERS
+  // =========================================================
+  function renderPeople() {
+    const list = document.getElementById("people-list");
+    if (state.people.length === 0) {
+      list.innerHTML = '<li class="text-sm text-black">Belum ada anggota. Tambah dulu di atas.</li>';
+      return;
+    }
+    list.innerHTML = state.people.map((p) => `
+      <li class="flex items-center justify-between py-2.5">
+        <div>
+          <div class="text-sm font-semibold text-black">${escapeHtml(p.name)}</div>
+          <div class="text-xs text-black">${escapeHtml(p.email)}</div>
+        </div>
+        <button data-delete-person="${p.id}" class="text-black hover:text-red-600 p-1" title="Hapus">🗑️</button>
+      </li>
+    `).join("");
+  }
+
+  function renderNewBillForm() {
+    const empty = document.getElementById("bill-empty");
+    const form = document.getElementById("add-bill-form");
+    if (state.people.length < 2) {
+      empty.classList.remove("hidden");
+      form.classList.add("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+    form.classList.remove("hidden");
+
+    // Update payer dropdown
+    const payerSelect = document.getElementById("bill-payer");
+    const currentPayer = payerSelect.value;
+    payerSelect.innerHTML =
+      '<option value="">-- pilih --</option>' +
+      state.people.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    if (state.people.some((p) => p.id === currentPayer)) payerSelect.value = currentPayer;
+
+    // Re-render shares container (preserve existing inputs)
+    renderShareRows();
+  }
+
+  let shareRows = [{ personId: "", amount: "" }];
+
+  function renderShareRows() {
+    const container = document.getElementById("shares-container");
+    const usedIds = new Set(shareRows.map((s) => s.personId).filter(Boolean));
+
+    container.innerHTML = shareRows.map((s, idx) => `
+      <div class="flex gap-2" data-row-idx="${idx}">
+        <select class="share-person flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-sky-500">
+          <option value="">-- pilih anggota --</option>
+          ${state.people.map((p) => `
+            <option value="${p.id}" ${p.id === s.personId ? "selected" : ""} ${usedIds.has(p.id) && p.id !== s.personId ? "disabled" : ""}>
+              ${escapeHtml(p.name)}
+            </option>
+          `).join("")}
+        </select>
+        <input
+          type="number" inputmode="numeric" placeholder="0" min="0" step="1"
+          value="${s.amount}"
+          class="share-amount w-32 rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+        />
+        ${shareRows.length > 1 ? `<button type="button" data-remove-row="${idx}" class="text-black hover:text-red-600 px-2">×</button>` : ""}
+      </div>
+    `).join("");
+
+    updateBillTotal();
+  }
+
+  function updateBillTotal() {
+    const total = shareRows.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+    document.getElementById("bill-total").textContent = formatIDR(total);
+  }
+
+  function readShareInputs() {
+    document.querySelectorAll("#shares-container > div").forEach((row, idx) => {
+      const personId = row.querySelector(".share-person").value;
+      const amount = row.querySelector(".share-amount").value;
+      shareRows[idx] = { personId, amount };
+    });
+  }
+
+  function renderBills() {
+    const monthKey = currentMonthKey();
+    const monthBills = state.bills
+      .filter((b) => billMonthKey(b) === monthKey)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    document.getElementById("bills-header").textContent =
+      `Bills Bulan Ini (${monthBills.length})`;
+
+    const container = document.getElementById("bills-content");
+    if (monthBills.length === 0) {
+      container.innerHTML = '<p class="text-sm text-black">Belum ada bill bulan ini.</p>';
+      return;
+    }
+
+    const peopleById = {};
+    state.people.forEach((p) => (peopleById[p.id] = p));
+
+    container.innerHTML = monthBills.map((bill) => {
+      const date = new Date(bill.createdAt).toLocaleDateString("id-ID", {
+        day: "numeric", month: "short",
+      });
+      const payer = peopleById[bill.payerId];
+      return `
+        <div class="border border-zinc-200 rounded-lg p-4 mb-4">
+          <div class="flex items-start justify-between mb-3">
+            <div>
+              <h3 class="font-semibold text-black">${escapeHtml(bill.title)}</h3>
+              <div class="text-xs text-black mt-0.5">
+                ${date} · dibayar oleh
+                <span class="font-semibold text-black">${escapeHtml(payer?.name || "?")}</span>
+                · total ${formatIDR(bill.totalAmount)}
+              </div>
+            </div>
+            <button data-delete-bill="${bill.id}" class="text-black hover:text-red-600 p-1" title="Hapus bill">🗑️</button>
+          </div>
+          <ul class="space-y-1.5">
+            ${bill.shares.map((share) => {
+              const person = peopleById[share.personId];
+              const isPayer = share.personId === bill.payerId;
+              return `
+                <li class="flex items-center justify-between text-sm text-black">
+                  <label class="flex items-center gap-2 flex-1 ${isPayer ? "opacity-70" : "cursor-pointer"}">
+                    <input
+                      type="checkbox"
+                      ${share.isPaid ? "checked" : ""}
+                      ${isPayer ? "disabled" : ""}
+                      data-toggle-share="${bill.id}:${share.id}"
+                      class="checkbox-paid rounded border-zinc-400"
+                    />
+                    <span class="text-black ${share.isPaid ? "line-through opacity-60" : ""}">
+                      ${escapeHtml(person?.name || "?")}
+                      ${isPayer ? '<span class="ml-1.5 text-xs text-black">(pembayar)</span>' : ""}
+                    </span>
+                  </label>
+                  <span class="font-semibold text-black ${share.isPaid ? "line-through opacity-60" : ""}">
+                    ${formatIDR(share.amount)}
+                  </span>
+                  ${share.isPaid && !isPayer ? '<span class="text-green-600 ml-2">✓</span>' : ""}
+                </li>
+              `;
+            }).join("")}
+          </ul>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderSummary() {
+    const summary = computeSummary();
+    const active = summary.filter((p) => p.totalOwed > 0 || p.totalToReceive > 0);
+    const container = document.getElementById("summary-content");
+
+    if (state.people.length === 0) {
+      container.innerHTML = '<p class="text-sm text-black">Belum ada data untuk diakumulasi.</p>';
+      return;
+    }
+
+    if (active.length === 0) {
+      container.innerHTML = '<div class="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800">✅ Semua hutang udah lunas!</div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="space-y-3">' + active.map((p) => `
+      <div class="border border-zinc-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <div class="font-semibold text-black">${escapeHtml(p.name)}</div>
+            <div class="text-xs text-black">${escapeHtml(p.email)}</div>
+          </div>
+          <div class="text-right">
+            ${p.totalOwed > 0 ? `<div class="text-xs text-red-700 font-semibold">Hutang: ${formatIDR(p.totalOwed)}</div>` : ""}
+            ${p.totalToReceive > 0 ? `<div class="text-xs text-green-700 font-semibold">Piutang: ${formatIDR(p.totalToReceive)}</div>` : ""}
+          </div>
+        </div>
+        ${p.owesTo.length > 0 ? `
+          <div class="mb-2">
+            <div class="text-xs font-semibold text-black mb-1.5 flex items-center gap-1">
+              <span class="text-red-600">↓</span> Harus bayar ke:
+            </div>
+            <ul class="text-sm space-y-1 pl-4">
+              ${p.owesTo.map((b) => `
+                <li class="flex justify-between text-black">
+                  <span>${escapeHtml(b.payerName)}</span>
+                  <span class="font-semibold">${formatIDR(b.amount)}</span>
+                </li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
+        ${p.owedBy.length > 0 ? `
+          <div>
+            <div class="text-xs font-semibold text-black mb-1.5 flex items-center gap-1">
+              <span class="text-green-600">↑</span> Akan terima dari:
+            </div>
+            <ul class="text-sm space-y-1 pl-4">
+              ${p.owedBy.map((b) => `
+                <li class="flex justify-between text-black">
+                  <span>${escapeHtml(b.debtorName)}</span>
+                  <span class="font-semibold">${formatIDR(b.amount)}</span>
+                </li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
+      </div>
+    `).join("") + "</div>";
+  }
+
+  // =========================================================
+  // REMINDER (mailto)
+  // =========================================================
+  function buildMailto(person) {
+    const lines = [
+      `Hai ${person.name},`,
+      ``,
+      `Ini reminder hutang split bill kamu bulan ${currentMonthLabel()}.`,
+      ``,
+      `Total hutang kamu: ${formatIDR(person.totalOwed)}`,
+      ``,
+      `Rincian:`,
+      ...person.owesTo.map((b) => `- Ke ${b.payerName} (${b.payerEmail}): ${formatIDR(b.amount)}`),
+      ``,
+      `Mohon segera diselesaikan ya. Terima kasih!`,
+    ];
+    const subject = `Reminder: hutang split bill kamu bulan ini`;
+    const body = lines.join("\n");
+    return `mailto:${encodeURIComponent(person.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function renderReminderList() {
+    const summary = computeSummary();
+    const debtors = summary.filter((p) => p.totalOwed > 0);
+    const div = document.getElementById("reminder-result");
+    div.classList.remove("hidden");
+
+    if (debtors.length === 0) {
+      div.innerHTML = '<div class="rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2">✅ Gak ada yang punya hutang. Aman!</div>';
+      return;
+    }
+
+    div.innerHTML = `
+      <div class="rounded-lg bg-sky-50 border border-sky-200 p-3 text-sm">
+        <div class="font-semibold text-black mb-2">${debtors.length} orang punya hutang. Klik untuk buka email:</div>
+        <ul class="space-y-1.5">
+          ${debtors.map((p) => `
+            <li class="flex items-center justify-between gap-2">
+              <span class="text-black">${escapeHtml(p.name)} — ${formatIDR(p.totalOwed)}</span>
+              <a
+                href="${buildMailto(p)}"
+                class="inline-flex items-center gap-1 rounded bg-sky-600 text-white px-3 py-1 text-xs font-medium hover:bg-sky-700 no-underline"
+              >📨 Buka Email</a>
+            </li>
+          `).join("")}
+        </ul>
+      </div>
+    `;
+  }
+
+  // =========================================================
+  // RENDER ALL
+  // =========================================================
+  function renderAll() {
+    document.getElementById("month-label").textContent = currentMonthLabel();
+    renderPeople();
+    renderNewBillForm();
+    renderBills();
+    renderSummary();
+  }
+
+  // =========================================================
+  // EVENT HANDLERS
+  // =========================================================
+  document.getElementById("add-person-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById("person-error");
+    errEl.classList.add("hidden");
+    try {
+      addPerson(
+        document.getElementById("person-email").value,
+        document.getElementById("person-name").value
+      );
+      document.getElementById("person-email").value = "";
+      document.getElementById("person-name").value = "";
+      renderAll();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.remove("hidden");
+    }
+  });
+
+  document.getElementById("people-list").addEventListener("click", (e) => {
+    const id = e.target.closest("[data-delete-person]")?.dataset.deletePerson;
+    if (id && confirm("Hapus anggota ini?")) {
+      deletePerson(id);
+      renderAll();
+    }
+  });
+
+  document.getElementById("add-share-btn").addEventListener("click", () => {
+    readShareInputs();
+    shareRows.push({ personId: "", amount: "" });
+    renderShareRows();
+  });
+
+  document.getElementById("shares-container").addEventListener("click", (e) => {
+    const removeIdx = e.target.closest("[data-remove-row]")?.dataset.removeRow;
+    if (removeIdx !== undefined) {
+      readShareInputs();
+      shareRows.splice(Number(removeIdx), 1);
+      if (shareRows.length === 0) shareRows = [{ personId: "", amount: "" }];
+      renderShareRows();
+    }
+  });
+
+  document.getElementById("shares-container").addEventListener("input", () => {
+    readShareInputs();
+    updateBillTotal();
+  });
+  document.getElementById("shares-container").addEventListener("change", () => {
+    readShareInputs();
+    renderShareRows();
+  });
+
+  document.getElementById("split-evenly-btn").addEventListener("click", () => {
+    readShareInputs();
+    const validRows = shareRows.filter((s) => s.personId);
+    const total = shareRows.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+    if (validRows.length === 0 || total === 0) return;
+    const per = Math.round(total / validRows.length);
+    shareRows = shareRows.map((s) => (s.personId ? { ...s, amount: String(per) } : s));
+    renderShareRows();
+  });
+
+  document.getElementById("add-bill-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    readShareInputs();
+    const errEl = document.getElementById("bill-error");
+    errEl.classList.add("hidden");
+    try {
+      addBill(
+        document.getElementById("bill-title").value,
+        document.getElementById("bill-payer").value,
+        shareRows
+      );
+      document.getElementById("bill-title").value = "";
+      document.getElementById("bill-payer").value = "";
+      shareRows = [{ personId: "", amount: "" }];
+      renderAll();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.remove("hidden");
+    }
+  });
+
+  document.getElementById("bills-content").addEventListener("change", (e) => {
+    const data = e.target.dataset.toggleShare;
+    if (data) {
+      const [billId, shareId] = data.split(":");
+      toggleShare(billId, shareId);
+      renderAll();
+    }
+  });
+
+  document.getElementById("bills-content").addEventListener("click", (e) => {
+    const id = e.target.closest("[data-delete-bill]")?.dataset.deleteBill;
+    if (id && confirm("Hapus bill ini?")) {
+      deleteBill(id);
+      renderAll();
+    }
+  });
+
+  document.getElementById("open-reminder-btn").addEventListener("click", renderReminderList);
+
+  document.getElementById("reset-btn").addEventListener("click", () => {
+    if (confirm("Hapus SEMUA data (anggota & bills)? Aksi ini tidak bisa dibatalkan.")) {
+      localStorage.removeItem(STORAGE_KEY);
+      state = { people: [], bills: [] };
+      shareRows = [{ personId: "", amount: "" }];
+      renderAll();
+    }
+  });
+
+  // =========================================================
+  // INIT
+  // =========================================================
+  loadState();
+  renderAll();
+</script>
+
+</body>
+</html>
